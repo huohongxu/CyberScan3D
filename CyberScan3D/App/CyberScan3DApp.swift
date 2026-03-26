@@ -10,6 +10,7 @@ import SwiftUI
 
 @main
 struct CyberScan3DApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var appState = AppState()
     
     var body: some Scene {
@@ -17,6 +18,20 @@ struct CyberScan3DApp: App {
             RootView()
                 .environmentObject(appState)
                 .preferredColorScheme(.dark)
+                .onReceive(
+                    NotificationCenter.default.publisher(for: NSNotification.Name("OpenScanView")),
+                    perform: { _ in
+                        // 打开扫描界面
+                    }
+                )
+                .onReceive(
+                    NotificationCenter.default.publisher(for: NSNotification.Name("ImportModel")),
+                    perform: { notification in
+                        if let url = notification.object as? URL {
+                            print("📦 导入模型: \(url)")
+                        }
+                    }
+                )
         }
     }
 }
@@ -32,11 +47,32 @@ final class AppState: ObservableObject {
     
     init() {
         loadProjects()
+        setupNotificationObservers()
     }
     
     private func loadProjects() {
         if let loaded = try? ProjectStorage.shared.loadAll() {
             projects = loaded
+        }
+    }
+    
+    private func setupNotificationObservers() {
+        // 监听 AR 扫描暂停
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ARScannerPause"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.isScanning = false
+        }
+        
+        // 监听 AR 扫描恢复
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ARScannerResume"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // 恢复扫描状态
         }
     }
 }
